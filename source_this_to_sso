@@ -1,0 +1,73 @@
+# vi: ft=bash
+
+######################################################################
+# This file can be sourced to make your environment suitable for work
+# on Artran deployments
+#
+# The first two steps below are only required once per machine.
+# -------------------------------------------------------------
+#
+# To use this file, first install the AWS CLI v2:
+# brew install awscli
+#
+# Once installed, configure the AWS SSO profile by typing:
+# aws configure sso
+#     * SSO session name (Recommended): ArtranSSO
+#     * AWS SSO start URL [None]: https://d-9367b6a011.awsapps.com/start/#
+#     * SSO region [None]: eu-west-1
+#     * SSO registration scopes [None]: sso:account:access
+#
+# You'll be prompted to login to the AWS SSO service. Once logged in,
+# select the account you want to use for the deployment and then select
+# the role you want to use.
+#
+# Once you've done this, you'll be prompted to select a profile name.
+# Enter `ArtranDeploy` as the profile name.
+#
+# If you already have SSO configured, you can add a new profile by
+# typing:
+# aws configure sso --profile ArtranDeploy
+#
+# The following step needs to be run each time you need access.
+# -------------------------------------------------------------
+#
+# Once you've done this, you can use this file to set your environment:
+#     `source source_this_to_setenv.sh`
+#
+# Note: This will require a later version of the terraform AWS provider
+# because some time before v4.67.0 the SSO format changed.
+######################################################################
+
+######################################################################
+# Start by unsetting any existing AWS credentials in the env
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE AWS_DEFAULT_REGION AWS_REGION
+
+# 1. Check if AWS CLI is installed
+if ! command -v aws &>/dev/null; then
+  echo "Error: AWS CLI is not installed. Please install it and configure your PATH."
+  return 1
+fi
+
+export AWS_REGION=eu-west-1
+export AWS_PROFILE=ArtranDeploy
+
+# 2. Check if the specified profile exists and is an SSO profile
+# We check for sso_start_url which is unique to SSO profiles.
+if ! aws configure get sso_account_id --profile "${AWS_PROFILE}" >/dev/null 2>&1; then
+  echo "Error: Profile '${AWS_PROFILE}' does not exist or is not an SSO profile."
+  echo "Please run 'aws configure sso --profile ${AWS_PROFILE}' first."
+  return 1
+fi
+
+# 5. Verify the login and show the current identity
+if aws sso login --profile ${AWS_PROFILE}; then
+  echo ""
+  echo -e "\033[0;32mLogin successful. Your shell is now configured for AWS.\033[0m"
+  echo -e "\033[0;32mVerifying credentials with 'aws sts get-caller-identity':\033[0m"
+  aws sts get-caller-identity
+else
+  echo ""
+  echo -e "\033[0;31mError: AWS SSO login failed.\033[0m"
+  unset AWS_PROFILE # Unset the profile if login fails
+  return 1
+fi
