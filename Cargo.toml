@@ -1,5 +1,6 @@
 [package]
 name = "create_aws_account"
+description = "A Rust program to create an AWS account using AWS SDK for Rust and display progress in terminal UI."
 version = "0.1.0"
 edition = "2024"
 
